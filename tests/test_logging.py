@@ -95,7 +95,7 @@ class TestEndpoints:
         """Test root endpoint returns correct response."""
         response = client.get("/")
         assert response.status_code == 200
-        assert response.json() == {"message": "Welcome to FastAPI Structured Logging Demo"}
+        assert response.json() == {"message": "Welcome to FastAPI Structured Logging Demo boss"}
 
     def test_hello_endpoint(self, client):
         """Test hello endpoint with name parameter."""

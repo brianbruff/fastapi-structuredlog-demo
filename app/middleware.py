@@ -77,8 +77,15 @@ class UserContextMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("authorization", "")
         custom_user_header = request.headers.get("x-user-name", "")
         
+        # Debug logging
+        logger.info("Auth header extraction", 
+                   auth_header_present=bool(auth_header), 
+                   auth_header_value=auth_header[:50] if auth_header else "none",  # Log first 50 chars for debugging
+                   custom_header=bool(custom_user_header))
+        
         # Check custom user header first (simplest for demo)
         if custom_user_header:
+            logger.info("Using custom user header", user=custom_user_header)
             return custom_user_header
         
         # Handle Basic auth
@@ -87,6 +94,7 @@ class UserContextMiddleware(BaseHTTPMiddleware):
                 encoded_credentials = auth_header.split(" ", 1)[1]
                 decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
                 username, _ = decoded_credentials.split(":", 1)
+                logger.info("Extracted username from Basic auth", user=username)
                 return username
             except (ValueError, UnicodeDecodeError, IndexError):
                 logger.warning("Invalid Basic auth header format")

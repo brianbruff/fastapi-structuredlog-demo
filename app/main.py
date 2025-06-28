@@ -2,8 +2,10 @@
 FastAPI application with structured logging example.
 """
 
+import secrets
 from typing import Dict, Any
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import JSONResponse
 import structlog
 
@@ -24,6 +26,32 @@ app = FastAPI(
 # Add middleware for user context
 app.add_middleware(UserContextMiddleware)
 
+# Basic auth security
+security = HTTPBasic()
+
+# Mock user database (in production, use a real database)
+fake_users_db = {
+    "alice": "secret123",
+    "bob": "password456", 
+    "charlie": "mypassword",
+    "admin": "admin123"
+}
+
+def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+    """Authenticate user with basic auth credentials."""
+    username = credentials.username
+    password = credentials.password
+    
+    # Check if user exists and password is correct
+    if username in fake_users_db and secrets.compare_digest(password, fake_users_db[username]):
+        return username
+    
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication credentials",
+        headers={"WWW-Authenticate": "Basic"},
+    )
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -41,7 +69,49 @@ async def shutdown_event():
 async def root(logger: structlog.stdlib.BoundLogger = Depends(get_request_logger)) -> Dict[str, str]:
     """Root endpoint with structured logging."""
     logger.info("Root endpoint accessed")
-    return {"message": "Welcome to FastAPI Structured Logging Demo boss"}
+    return {
+        "message": "Welcome to FastAPI Structured Logging Demo boss",
+        "info": "Use /login for authentication instructions, or /docs to see all endpoints"
+    }
+
+
+@app.get("/login")
+async def login_info(logger: structlog.stdlib.BoundLogger = Depends(get_request_logger)) -> Dict[str, Any]:
+    """Provide login instructions and available test users."""
+    logger.info("Login info requested")
+    return {
+        "message": "Use Basic Authentication to test username logging",
+        "instructions": {
+            "curl_example": "curl -u alice:secret123 http://localhost:8000/protected",
+            "browser": "Visit /protected and enter username/password when prompted",
+            "headers": "Add Authorization: Basic <base64(username:password)> header"
+        },
+        "test_users": {
+            "alice": "secret123",
+            "bob": "password456", 
+            "charlie": "mypassword",
+            "admin": "admin123"
+        },
+        "endpoints_to_test": [
+            "/protected (requires auth)",
+            "/user-info (shows current user)",
+            "/auth-test (requires auth)"
+        ]
+    }
+
+
+@app.get("/auth-test")
+async def auth_test(
+    current_user: str = Depends(authenticate_user),
+    logger: structlog.stdlib.BoundLogger = Depends(get_request_logger)
+) -> Dict[str, str]:
+    """Test endpoint that requires authentication."""
+    logger.info("Authenticated endpoint accessed", authenticated_user=current_user)
+    return {
+        "message": f"Hello {current_user}! You are successfully authenticated.",
+        "user": current_user,
+        "note": "Check the logs to see your username being logged!"
+    }
 
 
 @app.get("/hello/{name}")
@@ -56,11 +126,16 @@ async def hello_user(
 
 @app.get("/protected")
 async def protected_endpoint(
+    current_user: str = Depends(authenticate_user),
     logger: structlog.stdlib.BoundLogger = Depends(get_request_logger)
 ) -> Dict[str, str]:
     """Protected endpoint that requires authentication."""
-    logger.info("Protected endpoint accessed")
-    return {"message": "This is a protected resource", "status": "authenticated"}
+    logger.info("Protected endpoint accessed", authenticated_user=current_user)
+    return {
+        "message": "This is a protected resource", 
+        "status": "authenticated",
+        "user": current_user
+    }
 
 
 @app.get("/user-info")

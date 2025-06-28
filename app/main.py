@@ -16,7 +16,7 @@ main_logger = get_logger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="FastAPI Structured Logging Demo",
+    title="FastAPI Structured Logging Demo bek",
     description="Example application demonstrating structured logging with user context",
     version="1.0.0",
 )
@@ -41,7 +41,7 @@ async def shutdown_event():
 async def root(logger: structlog.stdlib.BoundLogger = Depends(get_request_logger)) -> Dict[str, str]:
     """Root endpoint with structured logging."""
     logger.info("Root endpoint accessed")
-    return {"message": "Welcome to FastAPI Structured Logging Demo"}
+    return {"message": "Welcome to FastAPI Structured Logging Demo boss"}
 
 
 @app.get("/hello/{name}")

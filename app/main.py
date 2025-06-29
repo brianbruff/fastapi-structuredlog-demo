@@ -130,7 +130,16 @@ async def protected_endpoint(
     logger: structlog.stdlib.BoundLogger = Depends(get_request_logger)
 ) -> Dict[str, str]:
     """Protected endpoint that requires authentication."""
-    logger.info("Protected endpoint accessed", authenticated_user=current_user)
+
+    # create sample object to log
+    sample_object = {
+        "name": "bob",
+        "age": 30,
+        "address": "123 Main St, Anytown, USA"
+    }
+
+
+    logger.info("Protected endpoint accessed", sample_object=sample_object)
     return {
         "message": "This is a protected resource", 
         "status": "authenticated",

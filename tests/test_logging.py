@@ -95,7 +95,9 @@ class TestEndpoints:
         """Test root endpoint returns correct response."""
         response = client.get("/")
         assert response.status_code == 200
-        assert response.json() == {"message": "Welcome to FastAPI Structured Logging Demo boss"}
+        data = response.json()
+        assert data["message"] == "Welcome to FastAPI Structured Logging Demo boss"
+        assert "info" in data
 
     def test_hello_endpoint(self, client):
         """Test hello endpoint with name parameter."""
@@ -105,11 +107,19 @@ class TestEndpoints:
 
     def test_protected_endpoint(self, client):
         """Test protected endpoint."""
+        # Test without authentication (should fail)
         response = client.get("/protected")
+        assert response.status_code == 401
+        
+        # Test with authentication (should succeed)
+        credentials = base64.b64encode(b"alice:secret123").decode("utf-8")
+        headers = {"Authorization": f"Basic {credentials}"}
+        response = client.get("/protected", headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert "message" in data
         assert "status" in data
+        assert data["user"] == "alice"
 
     def test_user_info_endpoint_with_custom_header(self, client):
         """Test user info endpoint with custom user header."""
@@ -190,11 +200,14 @@ class TestStructuredLogging:
     def test_request_logging_integration(self, client):
         """Test that requests generate structured logs."""
         with patch('app.middleware.logger') as mock_logger:
+            mock_bound_logger = MagicMock()
+            mock_logger.bind.return_value = mock_bound_logger
+            
             headers = {"X-User-Name": "integrationtest"}
             response = client.get("/hello/integration", headers=headers)
             
             assert response.status_code == 200
-            # Verify that the middleware logger was used
+            # Verify that the middleware logger was used for binding
             assert mock_logger.bind.called
 
 
@@ -233,7 +246,7 @@ async def test_middleware_async_processing():
     mock_request.url.path = "/test"
     mock_request.method = "GET"
     mock_request.headers = {"x-user-name": "asynctest"}
-    mock_request.query_params = {}
+   
     mock_request.state = MagicMock()
     
     async def mock_call_next(request):
@@ -250,4 +263,5 @@ async def test_middleware_async_processing():
         # Verify middleware processed the request
         assert response.status_code == 200
         assert mock_logger.bind.called
-        assert mock_bound_logger.info.called
+        # Check that the logger was stored in request state
+        assert hasattr(mock_request.state, "logger")

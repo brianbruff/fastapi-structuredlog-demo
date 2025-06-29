@@ -79,12 +79,12 @@ The application uses `structlog` configured to output JSON logs with:
 - **Log Level**: INFO, ERROR, DEBUG, etc.
 - **Logger Name**: Module name where log originated
 - **User Context**: Current user information
-- **Request Context**: Route, method, request ID
+- **Request Context**: Route, method information
 - **Custom Fields**: Any additional contextual data
 
 ### User Context Injection
 
-The `UserContextMiddleware` extracts user information from requests using:
+The `UserContextMiddleware` extracts user information from requests and binds it to a logger that's available throughout the request lifecycle. The middleware supports:
 
 1. **Custom Header** (simplest for demo):
    ```bash
@@ -103,12 +103,11 @@ The `UserContextMiddleware` extracts user information from requests using:
 
 ### Log Context Binding
 
-Every request automatically gets:
+Every request gets a logger bound with:
 - `user`: Username from authentication
 - `route`: API endpoint path
-- `method`: HTTP method (GET, POST, etc.)
-- `request_id`: Unique request identifier
-- `user_agent`: Client user agent
+
+Additional context can be added in individual route handlers using the request logger dependency.
 
 ## 📋 API Endpoints
 
@@ -129,50 +128,17 @@ When you make a request with user context:
 curl -H "X-User-Name: alice" http://127.0.0.1:8000/hello/world
 ```
 
-The structured log output looks like:
-
-```json
-{
-  "event": "Request started",
-  "level": "info",
-  "logger": "app.middleware",
-  "method": "GET",
-  "query_params": {},
-  "request_id": 140234567890,
-  "route": "/hello/world",
-  "timestamp": "2024-01-15T10:30:45.123456Z",
-  "user": "alice",
-  "user_agent": "curl/7.68.0"
-}
-```
+The structured log output will include user context bound to the logger:
 
 ```json
 {
   "event": "Hello endpoint accessed",
   "level": "info", 
   "logger": "app.main",
-  "method": "GET",
-  "request_id": 140234567890,
   "route": "/hello/world",
   "target_name": "world",
   "timestamp": "2024-01-15T10:30:45.125789Z",
-  "user": "alice",
-  "user_agent": "curl/7.68.0"
-}
-```
-
-```json
-{
-  "event": "Request completed",
-  "level": "info",
-  "logger": "app.middleware", 
-  "method": "GET",
-  "request_id": 140234567890,
-  "route": "/hello/world",
-  "status_code": 200,
-  "timestamp": "2024-01-15T10:30:45.127234Z",
-  "user": "alice",
-  "user_agent": "curl/7.68.0"
+  "user": "alice"
 }
 ```
 
@@ -226,8 +192,8 @@ To extend this example for production use:
 
 1. **Real Authentication**: Replace mock token parsing with actual JWT validation
 2. **Database Integration**: Add user lookup from database
-3. **Log Aggregation**: Send logs to ELK stack, Splunk, or CloudWatch
-4. **Request Correlation**: Use proper correlation IDs across services
+3. **Enhanced Logging**: Add more request/response context as needed
+4. **Log Aggregation**: Send logs to ELK stack, Splunk, or CloudWatch
 5. **Performance Monitoring**: Add metrics and tracing integration
 
 ## 🤝 Usage Examples
